@@ -1,0 +1,8 @@
+[package]
+name = "cubed"
+version = "0.1.0"
+authors = ["Scott Moore <scott.will.moore@gmail.com>"]
+
+[dependencies]
+gl = "0.10"
+glutin = "0.18"
