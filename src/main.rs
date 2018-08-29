@@ -8,6 +8,11 @@ use gl::types::*;
 use glutin::dpi::*;
 use glutin::*;
 
+mod shader;
+use shader::*;
+mod program;
+use program::*;
+
 static VERTEX_SHADER: &'static str = include_str!("vertex.glsl");
 static FRAGMENT_SHADER: &'static str = include_str!("fragment.glsl");
 
@@ -67,95 +72,6 @@ fn process_events(window: &GlWindow, events_loop: &mut EventsLoop) -> bool {
     close_requested
 }
 
-fn create_shader(source: &CStr, kind: GLenum) -> GLuint {
-    let id = unsafe { gl::CreateShader(kind) };
-
-    unsafe {
-        gl::ShaderSource(id, 1, &source.as_ptr(), std::ptr::null());
-        gl::CompileShader(id);
-    }
-
-    let mut success = gl::FALSE as GLint;
-    unsafe {
-        gl::GetShaderiv(id, gl::COMPILE_STATUS, &mut success);
-    }
-
-    if success == (gl::FALSE as GLint) {
-        let mut len = 0;
-        unsafe {
-            gl::GetShaderiv(id, gl::INFO_LOG_LENGTH, &mut len);
-        }
-
-        let mut buf = Vec::with_capacity(len as usize);
-        unsafe {
-            buf.set_len((len as usize) - 1);
-            gl::GetShaderInfoLog(
-                id,
-                len,
-                std::ptr::null_mut(),
-                buf.as_mut_ptr() as *mut GLchar,
-            );
-        }
-
-        panic!(
-            "{}",
-            std::str::from_utf8(&buf)
-                .ok()
-                .expect("ShaderInfoLog is not valid utf8")
-        );
-    }
-
-    id
-}
-
-fn create_shader_program(vertex_shader: GLuint, fragment_shader: GLuint) -> GLuint {
-    let id = unsafe { gl::CreateProgram() };
-
-    unsafe {
-        gl::AttachShader(id, vertex_shader);
-        gl::AttachShader(id, fragment_shader);
-        gl::LinkProgram(id);
-    }
-
-    let mut success = gl::FALSE as GLint;
-    unsafe {
-        gl::GetProgramiv(id, gl::LINK_STATUS, &mut success);
-    }
-
-    if success == (gl::FALSE as GLint) {
-        let mut len = 0;
-        unsafe {
-            gl::GetProgramiv(id, gl::INFO_LOG_LENGTH, &mut len);
-        }
-
-        let mut buf = Vec::with_capacity(len as usize);
-        unsafe {
-            buf.set_len((len as usize) - 1);
-            gl::GetShaderInfoLog(
-                id,
-                len,
-                std::ptr::null_mut(),
-                buf.as_mut_ptr() as *mut GLchar,
-            );
-        }
-
-        panic!(
-            "{}",
-            std::str::from_utf8(&buf)
-                .ok()
-                .expect("ShaderInfoLog is not valid utf8")
-        );
-    }
-
-    // NOTE: This shouldn't be in this function.
-    unsafe {
-        gl::DeleteShader(vertex_shader);
-        gl::DeleteShader(fragment_shader);
-    }
-
-    id
-}
-
 fn main() {
     // Create the window and events loop.
     let (window, mut events_loop) = create_window("Hello, world!".into());
@@ -165,11 +81,11 @@ fn main() {
     let fragment_source = CString::new(FRAGMENT_SHADER).unwrap();
 
     // Create and compile the shaders.
-    let vertex_shader = create_shader(&vertex_source, gl::VERTEX_SHADER);
-    let fragment_shader = create_shader(&fragment_source, gl::FRAGMENT_SHADER);
+    let vertex_shader = Shader::new(&vertex_source, ShaderType::Vertex.into());
+    let fragment_shader = Shader::new(&fragment_source, gl::FRAGMENT_SHADER);
 
     // Create and link the shader program.
-    let shader_program = create_shader_program(vertex_shader, fragment_shader);
+    let shader_program = Program::new(&[vertex_shader, fragment_shader]);
 
     // Define the vertices used for the triangle.
     #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -220,7 +136,7 @@ fn main() {
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
-            gl::UseProgram(shader_program);
+            shader_program.bind();
 
             gl::BindVertexArray(vao);
             gl::DrawArrays(gl::TRIANGLES, 0, 3);
