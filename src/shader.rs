@@ -1,5 +1,5 @@
 use std;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 
 use gl;
 use gl::types::*;
@@ -25,11 +25,12 @@ pub struct Shader {
 }
 
 impl Shader {
-    pub fn new(source: &CStr, kind: GLenum) -> Shader {
+    pub fn new(source: &str, kind: GLenum) -> Shader {
         let id = unsafe { gl::CreateShader(kind) };
         let shader = Shader { id };
 
-        let success = shader.compile(source);
+        let c_source = CString::new(source).unwrap();
+        let success = shader.compile(&c_source);
         if !success {
             let info_log = shader.get_info_log();
             panic!("\n{}\n", info_log);

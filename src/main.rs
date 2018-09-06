@@ -2,6 +2,7 @@ extern crate gl;
 extern crate glutin;
 
 use std::ffi::{CStr, CString};
+use std::time::Instant;
 
 use gl::types::*;
 
@@ -76,13 +77,12 @@ fn main() {
     // Create the window and events loop.
     let (window, mut events_loop) = create_window("Hello, world!".into());
 
-    // Load the vertex and fragment shader source as CStrings.
-    let vertex_source = CString::new(VERTEX_SHADER).unwrap();
-    let fragment_source = CString::new(FRAGMENT_SHADER).unwrap();
+    // Create an instant to measure elapsed time.
+    let start_time = Instant::now();
 
     // Create and compile the shaders.
-    let vertex_shader = Shader::new(&vertex_source, ShaderType::Vertex.into());
-    let fragment_shader = Shader::new(&fragment_source, gl::FRAGMENT_SHADER);
+    let vertex_shader = Shader::new(VERTEX_SHADER, ShaderType::Vertex.into());
+    let fragment_shader = Shader::new(FRAGMENT_SHADER, gl::FRAGMENT_SHADER);
 
     // Create and link the shader program.
     let shader_program = Program::new(&[vertex_shader, fragment_shader]);
@@ -135,6 +135,16 @@ fn main() {
         unsafe {
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
+
+            let elapsed = start_time.elapsed();
+            let elapsed_millis = (elapsed.as_secs() * 1000) + (elapsed.subsec_millis() as u64);
+
+            let red = 0.5 * f32::sin((elapsed_millis as f32) / 500.0) + 0.5;
+            let green = 0.5 * f32::sin((elapsed_millis as f32) / 1000.0) + 0.5;
+            let blue = 0.5 * f32::sin((elapsed_millis as f32) / 2000.0) + 0.5;
+
+            let triangle_color = shader_program.get_uniform_location("triangleColor");
+            shader_program.set_uniform(triangle_color, UniformData::FloatVec3([red, green, blue]));
 
             shader_program.bind();
 
